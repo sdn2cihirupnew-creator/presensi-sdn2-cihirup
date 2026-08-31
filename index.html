@@ -126,7 +126,7 @@ tr:hover{background:#f8fbff}
 #scanResult{white-space:pre-line}
 
 
-/* V7.8 FAST DASHBOARD */
+/* V7.9.1 UNDUH PDF + % KEHADIRAN */
 .attendance-list-panel.hidden{display:none !important}
 .btn-close-list{white-space:nowrap}
 #loading{display:none}
@@ -135,10 +135,19 @@ tr:hover{background:#f8fbff}
   .btn-close-list{width:100%}
 }
 
+
+.download-wrap{position:relative;display:inline-block}
+.download-menu{position:absolute;right:0;top:calc(100% + 7px);z-index:1000;background:#fff;border:1px solid #d8e2ec;border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.12);min-width:260px;padding:7px}
+.download-menu button{display:block;width:100%;border:0;background:#fff;text-align:left;padding:11px 12px;border-radius:8px;font-weight:700;color:#17365d;cursor:pointer}
+.download-menu button:hover{background:#eef6ff}
+.download-menu.hidden{display:none!important}
+@media(max-width:600px){.download-wrap{width:100%}.download-wrap>.btn{width:100%}.download-menu{position:static;margin-top:7px;width:100%}}
 </style>
 
 <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body>
 
@@ -210,7 +219,13 @@ tr:hover{background:#f8fbff}
             <option value="Belum Presensi">Belum Presensi</option>
           </select>
         </div>
-        <div class="action-buttons"><button id="refreshBtn" class="btn btn-refresh" onclick="loadDashboard()">↻ TAMPILKAN</button><button class="btn btn-print" onclick="window.print()">🖨 CETAK</button></div><div class="dashboard-hint">Data daftar siswa dimuat hanya setelah tombol <strong>TAMPILKAN</strong> ditekan.</div>
+        <div class="action-buttons"><button id="refreshBtn" class="btn btn-refresh" onclick="loadDashboard()">↻ TAMPILKAN</button><div class="download-wrap">
+  <button class="btn btn-print" onclick="toggleDownloadMenu()">⬇ UNDUH</button>
+  <div id="downloadMenu" class="download-menu hidden">
+    <button onclick="downloadDailyPDF()">📄 Rekap Presensi Harian</button>
+    <button onclick="downloadMonthlyPDF()">📊 Rekap Presensi Bulanan</button>
+  </div>
+</div></div><div class="dashboard-hint">Data daftar siswa dimuat hanya setelah tombol <strong>TAMPILKAN</strong> ditekan.</div>
       </div>
     </div>
 
@@ -286,7 +301,7 @@ tr:hover{background:#f8fbff}
   </div>
 </div>
 
-<div class="footer">Presensi Digital • SD Negeri 2 Cihirup • V7.8 FAST DASHBOARD</div>
+<div class="footer">Presensi Digital • SD Negeri 2 Cihirup • V7.9.1 UNDUH PDF + % KEHADIRAN</div>
   </div>
 </section>
 
@@ -609,7 +624,7 @@ function doLogout(callServer){
 
 
 /* ==========================================================
-   V7.8 FAST DASHBOARD
+   V7.9.1 UNDUH PDF + % KEHADIRAN
    - Kamera tetap aktif setelah scan
    - Tidak reload dashboard setiap scan
    - Update ringkasan secara lokal
@@ -922,6 +937,88 @@ function updateLocalSummaryAfterAttendance(){
   });
 }
 
+
+
+/* ==========================================================
+   V7.9.1 UNDUH PDF + % KEHADIRAN
+   ========================================================== */
+function toggleDownloadMenu(){
+  const m=document.getElementById('downloadMenu');
+  if(m)m.classList.toggle('hidden');
+}
+document.addEventListener('click',function(e){
+  const w=document.querySelector('.download-wrap'),m=document.getElementById('downloadMenu');
+  if(w&&m&&!w.contains(e.target))m.classList.add('hidden');
+});
+function ensurePdfLib(){
+  if(!window.jspdf||!window.jspdf.jsPDF){
+    alert('Modul PDF belum siap. Pastikan internet aktif, lalu coba lagi.');
+    return false;
+  }
+  return true;
+}
+function pdfHeader(doc,title,subtitle){
+  const pw=doc.internal.pageSize.getWidth();
+  doc.setFont('helvetica','bold');doc.setFontSize(16);doc.text('PRESENSI DIGITAL',pw/2,16,{align:'center'});
+  doc.setFontSize(12);doc.text('SD NEGERI 2 CIHIRUP',pw/2,23,{align:'center'});
+  doc.setFontSize(13);doc.text(title,pw/2,33,{align:'center'});
+  doc.setFont('helvetica','normal');doc.setFontSize(9);doc.text(subtitle,pw/2,40,{align:'center'});
+}
+function statusSymbol(s){
+  s=String(s||'').toUpperCase();
+  if(s==='HADIR')return'H'; if(s==='IZIN')return'I'; if(s==='SAKIT')return'S';
+  if(s==='ALPA'||s==='TANPA KETERANGAN')return'A'; return'-';
+}
+function downloadDailyPDF(){
+  const m=document.getElementById('downloadMenu');if(m)m.classList.add('hidden');
+  if(!ensurePdfLib())return;
+  if(!Array.isArray(dashboardData)||dashboardData.length===0){
+    alert('Silakan klik TAMPILKAN terlebih dahulu agar data harian dimuat.');return;
+  }
+  const {jsPDF}=window.jspdf,doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  const tanggal=document.getElementById('tanggalInfo')?.innerText||'';
+  const kelas=session?.user?.kelas||'-';
+  pdfHeader(doc,'REKAP PRESENSI HARIAN',tanggal+' • Kelas '+kelas);
+  const body=dashboardData.map((r,i)=>[i+1,r.nis||'',r.nama||'',r.kelas||'',statusSymbol(r.status),r.waktu||'',r.keterangan||'']);
+  const c={H:0,I:0,S:0,A:0};dashboardData.forEach(r=>{const s=statusSymbol(r.status);if(c[s]!=null)c[s]++;});
+  doc.autoTable({startY:47,head:[['No','NIS','Nama Siswa','Kelas','Status','Waktu','Keterangan']],body:body,
+    styles:{fontSize:7,cellPadding:2,overflow:'linebreak'},headStyles:{fontSize:7},
+    columnStyles:{0:{cellWidth:9},1:{cellWidth:28},2:{cellWidth:55},3:{cellWidth:18},4:{cellWidth:18,halign:'center'},5:{cellWidth:23},6:{cellWidth:'auto'}}});
+  const y=(doc.lastAutoTable?.finalY||55)+8;
+  doc.setFontSize(9);doc.setFont('helvetica','bold');
+  doc.text('Jumlah: H='+c.H+'  I='+c.I+'  S='+c.S+'  A='+c.A,14,y);
+  doc.save('Rekap_Harian_'+kelas+'_'+todayDateForFile()+'.pdf');
+}
+function todayDateForFile(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function downloadMonthlyPDF(){
+  const m=document.getElementById('downloadMenu');if(m)m.classList.add('hidden');
+  if(!ensurePdfLib())return;
+  const ti=document.getElementById('tanggal'),bulan=ti&&ti.value?ti.value.slice(0,7):(new Date().toISOString().slice(0,7));
+  jsonpRequest({action:'monthly',userId:session.userId,token:session.token,bulan:bulan},
+    function(r){if(!r||!r.ok){alert(r?.message||'Rekap bulanan gagal diambil.');return;}buildMonthlyPDF(r);},
+    function(e){alert(e?.message||'Gagal menghubungi server untuk rekap bulanan.');});
+}
+function buildMonthlyPDF(data){
+  const {jsPDF}=window.jspdf,doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  const kelas=session?.user?.kelas||data.kelas||'-';
+  const names=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+  const p=String(data.bulan).split('-'),label=names[Number(p[1])-1]+' '+p[0];
+  pdfHeader(doc,'REKAP PRESENSI BULANAN',label+' • Kelas '+kelas);
+  const head=[['No','NIS','Nama'].concat(data.dates.map(d=>d.label)).concat(['H','I','S','A','% KEHADIRAN'])];
+  const body=data.rows.map(r=>[r.no,r.nis,r.nama].concat(data.dates.map(d=>r.daily[d.key]||'A')).concat([r.totals.H||0,r.totals.I||0,r.totals.S||0,r.totals.A||0,(Number(r.prosentaseKehadiran)||0).toFixed(2)+'%']));
+  const cw={0:{cellWidth:8,halign:'center'},1:{cellWidth:24},2:{cellWidth:45}};
+  data.dates.forEach((d,i)=>cw[3+i]={cellWidth:5.1,halign:'center'});
+  const t=3+data.dates.length;
+  [0,1,2,3].forEach((n)=>cw[t+n]={cellWidth:7,halign:'center'});
+  cw[t+4]={cellWidth:18,halign:'center'};
+  doc.autoTable({startY:47,head:head,body:body,theme:'grid',styles:{fontSize:5.5,cellPadding:1,halign:'center',valign:'middle'},headStyles:{fontSize:5.5,fontStyle:'bold'},columnStyles:cw,margin:{left:8,right:8}});
+  const y=(doc.lastAutoTable?.finalY||55)+7;
+  doc.setFontSize(8);doc.setFont('helvetica','bold');doc.text('Keterangan: H = Hadir   I = Izin   S = Sakit   A = Tanpa Keterangan',8,y);
+  doc.setFont('helvetica','normal');
+  doc.text('Jumlah tanggal dalam bulan: '+data.daysInMonth,8,y+5);
+  doc.text('Prosentase kehadiran = (H / jumlah tanggal) × 100%',8,y+10);
+  doc.save('Rekap_Bulanan_'+kelas+'_'+data.bulan+'.pdf');
+}
 
 function escapeHtml(value){
   return String(value == null ? '' : value)
