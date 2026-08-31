@@ -125,6 +125,16 @@ tr:hover{background:#f8fbff}
 #startCameraBtn:disabled{opacity:.6;cursor:not-allowed}
 #scanResult{white-space:pre-line}
 
+
+/* V7.8 FAST DASHBOARD */
+.attendance-list-panel.hidden{display:none !important}
+.btn-close-list{white-space:nowrap}
+#loading{display:none}
+.dashboard-hint{margin:10px 0 0;color:#71869c;font-size:13px}
+@media(max-width:700px){
+  .btn-close-list{width:100%}
+}
+
 </style>
 
 <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
@@ -200,11 +210,11 @@ tr:hover{background:#f8fbff}
             <option value="Belum Presensi">Belum Presensi</option>
           </select>
         </div>
-        <div class="action-buttons"><button id="refreshBtn" class="btn btn-refresh" onclick="loadDashboard()">↻ TAMPILKAN</button><button class="btn btn-print" onclick="window.print()">🖨 CETAK</button></div>
+        <div class="action-buttons"><button id="refreshBtn" class="btn btn-refresh" onclick="loadDashboard()">↻ TAMPILKAN</button><button class="btn btn-print" onclick="window.print()">🖨 CETAK</button></div><div class="dashboard-hint">Data daftar siswa dimuat hanya setelah tombol <strong>TAMPILKAN</strong> ditekan.</div>
       </div>
     </div>
 
-    <div id="loading" class="loading">⏳ Memuat data presensi...</div>
+    <div id="loading" class="loading" style="display:none">⏳ Memuat data presensi...</div>
 
     <div class="stats">
       <div class="stat"><div class="stat-title">Total Siswa</div><div id="totalSiswa" class="stat-value">0</div></div>
@@ -215,13 +225,16 @@ tr:hover{background:#f8fbff}
       <div class="stat" style="border-top-color:#9aa9b8"><div class="stat-title">Belum</div><div id="belum" class="stat-value">0</div></div>
     </div>
 
-    <div class="card" style="margin-top:20px">
+    <div id="attendanceListPanel" class="card attendance-list-panel hidden" style="margin-top:20px">
       <div class="toolbar-note">
         <div>
           <h2 style="margin:0 0 5px">Daftar Presensi Siswa</h2>
           <div id="tanggalInfo" style="color:#71869c"></div>
         </div>
-        <div class="connection">● TERHUBUNG</div>
+        <div class="scanner-actions" style="margin:0">
+          <div class="connection">● TERHUBUNG</div>
+          <button class="btn btn-danger btn-close-list" onclick="closeAttendanceList()">✕ TUTUP DAFTAR</button>
+        </div>
       </div>
 
       <div class="table-wrapper">
@@ -246,7 +259,7 @@ tr:hover{background:#f8fbff}
     </div>
     
 <div class="scanner-actions" style="margin:0">
-  <button class="btn btn-primary" onclick="loadDashboard()">↻ SINKRONKAN</button>
+  <button class="btn btn-primary" onclick="closeAttendanceList()">↻ KEMBALI KE DASHBOARD</button>
   <button class="btn btn-danger" onclick="closeScanner()">TUTUP SCANNER</button>
 </div>
 
@@ -273,7 +286,7 @@ tr:hover{background:#f8fbff}
   </div>
 </div>
 
-<div class="footer">Presensi Digital • SD Negeri 2 Cihirup • V7.7 FAST SCANNER</div>
+<div class="footer">Presensi Digital • SD Negeri 2 Cihirup • V7.8 FAST DASHBOARD</div>
   </div>
 </section>
 
@@ -311,7 +324,6 @@ window.addEventListener('load', function(){
       if(data && data.userId && data.token){
         session = data;
         showDashboard();
-        loadDashboard();
       }
     }catch(e){
       localStorage.removeItem('presensiSessionV74');
@@ -425,6 +437,12 @@ function showDashboard(){
   document.getElementById('loginPage').classList.add('hidden');
   document.getElementById('dashboardPage').classList.remove('hidden');
 
+  const listPanel = document.getElementById('attendanceListPanel');
+  if(listPanel) listPanel.classList.add('hidden');
+
+  const loading = document.getElementById('loading');
+  if(loading) loading.style.display = 'none';
+
   if(session.user){
     document.getElementById('welcomeName').innerText =
       'Selamat datang, ' + session.user.nama;
@@ -487,7 +505,16 @@ function loadDashboard(){
         'Data presensi tanggal ' + (d.tanggalTampilan || tanggal);
 
       dashboardData = Array.isArray(d.siswa) ? d.siswa : [];
+
+      const listPanel = document.getElementById('attendanceListPanel');
+      if(listPanel) listPanel.classList.remove('hidden');
+
       renderTable(dashboardData);
+
+      // Fokuskan pengguna ke daftar yang baru dimuat.
+      if(listPanel){
+        listPanel.scrollIntoView({behavior:'smooth', block:'start'});
+      }
     },
     function(error){
       if(serial !== requestSerial) return;
@@ -534,6 +561,12 @@ function badge(status){
   return '<span class="badge '+cls+'">'+escapeHtml(status)+'</span>';
 }
 
+function closeAttendanceList(){
+  const panel = document.getElementById('attendanceListPanel');
+  if(panel) panel.classList.add('hidden');
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
 function filterTable(){
   const search = document.getElementById('search').value.toLowerCase().trim();
   const status = document.getElementById('statusFilter').value;
@@ -557,6 +590,8 @@ function doLogout(callServer){
   dashboardData = [];
   localStorage.removeItem('presensiSessionV74');
 
+  closeAttendanceList();
+  closeScanner();
   document.getElementById('dashboardPage').classList.add('hidden');
   document.getElementById('loginPage').classList.remove('hidden');
   document.getElementById('pin').value = '';
@@ -574,7 +609,7 @@ function doLogout(callServer){
 
 
 /* ==========================================================
-   V7.7 FAST SCANNER
+   V7.8 FAST DASHBOARD
    - Kamera tetap aktif setelah scan
    - Tidak reload dashboard setiap scan
    - Update ringkasan secara lokal
