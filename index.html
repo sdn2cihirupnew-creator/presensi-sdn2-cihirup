@@ -126,7 +126,7 @@ tr:hover{background:#f8fbff}
 #scanResult{white-space:pre-line}
 
 
-/* V7.9.4 UNDUH PDF + % KEHADIRAN */
+/* V7.10.0 • Status Sakit/Izin + UNDUH PDF */
 .attendance-list-panel.hidden{display:none !important}
 .btn-close-list{white-space:nowrap}
 #loading{display:none}
@@ -143,7 +143,7 @@ tr:hover{background:#f8fbff}
 .download-menu.hidden{display:none!important}
 @media(max-width:600px){.download-wrap{width:100%}.download-wrap>.btn{width:100%}.download-menu{position:static;margin-top:7px;width:100%}}
 
-/* V7.9.4 PILIH BULAN */
+/* V7.10.0 PILIH BULAN */
 .month-modal{position:fixed;inset:0;background:rgba(10,31,52,.45);z-index:99999;display:none;align-items:center;justify-content:center;padding:18px}
 .month-modal.show{display:flex}
 .month-modal-card{width:min(440px,100%);background:#fff;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.22);padding:22px}
@@ -164,8 +164,33 @@ tr:hover{background:#f8fbff}
 }
 
 
-/* V7.9.4 PDF DOWNLOAD FIX */
+/* V7.10.0 PDF DOWNLOAD FIX */
 .pdf-progress{pointer-events:none;white-space:normal}
+
+
+/* V7.10.0 STATUS SAKIT / IZIN */
+.btn-status{border:1px solid #147bea;background:#eef6ff;color:#0759a8;border-radius:10px;padding:8px 10px;font-size:12px;font-weight:900;cursor:pointer;white-space:nowrap}
+.btn-status:hover{background:#dceeff}
+.action-locked{display:inline-block;color:#6b8198;background:#f0f3f6;border-radius:10px;padding:8px 10px;font-size:12px;font-weight:800;white-space:nowrap}
+.status-modal{position:fixed;inset:0;background:rgba(10,31,52,.48);z-index:100001;display:flex;align-items:center;justify-content:center;padding:18px}
+.status-modal.hidden{display:none!important}
+.status-modal-card{width:min(480px,100%);background:#fff;border-radius:22px;box-shadow:0 22px 70px rgba(0,0,0,.25);padding:22px}
+.status-modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:18px}
+.status-modal-title{font-size:21px;font-weight:900;color:#17365d}
+.status-modal-subtitle{font-size:13px;color:#71869c;margin-top:5px;line-height:1.4}
+.status-modal-close{border:0;background:#eef3f8;color:#17365d;border-radius:10px;width:36px;height:36px;font-size:18px;cursor:pointer}
+.status-date-box{background:#f5f9fd;border:1px solid #d8e5f0;border-radius:12px;padding:12px 14px;margin-bottom:17px;display:flex;justify-content:space-between;gap:10px}
+.status-date-box span{color:#71869c;font-size:13px}.status-date-box strong{color:#17365d}
+.status-label{display:block;font-weight:800;color:#17365d;margin:13px 0 8px}.status-label span{font-weight:500;color:#71869c;font-size:12px}
+.status-choice{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.status-choice-btn{border:0;border-radius:13px;min-height:56px;font-weight:900;font-size:16px;cursor:pointer}
+.status-choice-btn.sakit{background:#fff4d6;color:#946600}.status-choice-btn.izin{background:#e9f0ff;color:#2455a6}
+.status-choice-btn:disabled{opacity:.55;cursor:wait}
+.status-textarea{width:100%;box-sizing:border-box;border:1px solid #cbd9e8;border-radius:13px;padding:12px 14px;font-size:15px;resize:vertical;min-height:88px}
+.status-modal-message{display:none;margin-top:12px;padding:11px;border-radius:11px;font-weight:800;font-size:13px}
+.status-modal-message.info{display:block;background:#eef6ff;color:#0759a8}.status-modal-message.success{display:block;background:#e8f8ed;color:#18733b}.status-modal-message.error{display:block;background:#ffe8e8;color:#c62828}
+.status-modal-actions{margin-top:14px}.status-modal-actions .btn{width:100%}
+@media(max-width:600px){.status-modal{align-items:flex-end;padding:0}.status-modal-card{border-radius:22px 22px 0 0}.status-choice{grid-template-columns:1fr}.btn-status{padding:9px 8px}}
 
 </style>
 
@@ -282,7 +307,7 @@ tr:hover{background:#f8fbff}
           <thead>
             <tr>
               <th>No</th><th>NIS</th><th>Nama Siswa</th><th>Kelas</th>
-              <th>Status</th><th>Waktu</th><th>Keterangan</th>
+              <th>Status</th><th>Waktu</th><th>Keterangan</th><th>Aksi</th>
             </tr>
           </thead>
           <tbody id="studentTable"></tbody>
@@ -291,6 +316,38 @@ tr:hover{background:#f8fbff}
     </div>
 
     
+<div id="statusModal" class="status-modal hidden">
+  <div class="status-modal-card">
+    <div class="status-modal-head">
+      <div>
+        <div class="status-modal-title">📝 Isi Status Presensi</div>
+        <div id="statusStudentName" class="status-modal-subtitle"></div>
+      </div>
+      <button class="status-modal-close" onclick="closeStatusModal()">✕</button>
+    </div>
+
+    <div class="status-date-box">
+      <span>Tanggal</span>
+      <strong id="statusDateText">-</strong>
+    </div>
+
+    <label class="status-label">Pilih Status</label>
+    <div class="status-choice">
+      <button id="statusSakitBtn" class="status-choice-btn sakit" onclick="submitStudentStatus('Sakit')">🤒 SAKIT</button>
+      <button id="statusIzinBtn" class="status-choice-btn izin" onclick="submitStudentStatus('Izin')">📄 IZIN</button>
+    </div>
+
+    <label class="status-label" for="statusKeterangan">Keterangan <span>(opsional)</span></label>
+    <textarea id="statusKeterangan" class="status-textarea" rows="3" placeholder="Contoh: Demam / keperluan keluarga"></textarea>
+
+    <div id="statusMessage" class="status-modal-message"></div>
+
+    <div class="status-modal-actions">
+      <button class="btn btn-danger" onclick="closeStatusModal()">BATAL</button>
+    </div>
+  </div>
+</div>
+
 <div id="scannerPanel" class="card scanner-card hidden">
   <div class="scanner-head">
     <div>
@@ -326,7 +383,7 @@ tr:hover{background:#f8fbff}
   </div>
 </div>
 
-<div class="footer">Presensi Digital • SD Negeri 2 Cihirup • V7.9.4 UNDUH PDF + % KEHADIRAN</div>
+<div class="footer">Presensi Digital • SD Negeri 2 Cihirup • V7.10.0 • Status Sakit/Izin + UNDUH PDF</div>
   </div>
 </section>
 
@@ -572,7 +629,7 @@ function renderTable(rows){
 
   if(!rows.length){
     tbody.innerHTML =
-      '<tr><td colspan="7" class="empty">Tidak ada data siswa.</td></tr>';
+      '<tr><td colspan="8" class="empty">Tidak ada data siswa.</td></tr>';
     return;
   }
 
@@ -585,9 +642,126 @@ function renderTable(rows){
       '<td>'+escapeHtml(student.kelas)+'</td>'+
       '<td>'+badge(student.status)+'</td>'+
       '<td>'+escapeHtml(student.waktu || '-')+'</td>'+
-      '<td>'+escapeHtml(student.keterangan || '-')+'</td>';
+      '<td>'+escapeHtml(student.keterangan || '-')+'</td>'+
+      '<td>'+statusActionButton(student)+'</td>';
     tbody.appendChild(tr);
   });
+}
+
+let statusTarget = {nis:'', nama:'', tanggal:''};
+
+function statusActionButton(student){
+  const s = String(student.status || '').toLowerCase();
+  if(s === 'hadir'){
+    return '<span class="action-locked">✓ Tercatat</span>';
+  }
+  const label = (s === 'sakit' || s === 'izin') ? '✎ UBAH' : '+ ISI STATUS';
+  return '<button class="btn-status" onclick="openStatusModal(\''+escapeJs(student.nis)+'\',\''+escapeJs(student.nama)+'\')">'+label+'</button>';
+}
+
+function escapeJs(value){
+  return String(value == null ? '' : value)
+    .replace(/\\/g,'\\\\')
+    .replace(/'/g,"\\'")
+    .replace(/\n/g,'\\n')
+    .replace(/\r/g,'\\r');
+}
+
+function openStatusModal(nis, nama){
+  const tanggal = document.getElementById('tanggal').value;
+  if(!tanggal){
+    alert('Silakan pilih tanggal terlebih dahulu.');
+    return;
+  }
+  statusTarget = {nis:nis, nama:nama, tanggal:tanggal};
+  document.getElementById('statusStudentName').innerText = nama + ' • NIS ' + nis;
+  document.getElementById('statusDateText').innerText = formatDateLongId(new Date(tanggal+'T00:00:00'));
+  document.getElementById('statusKeterangan').value = '';
+  document.getElementById('statusMessage').className = 'status-modal-message';
+  document.getElementById('statusMessage').innerText = '';
+  document.getElementById('statusSakitBtn').disabled = false;
+  document.getElementById('statusIzinBtn').disabled = false;
+  document.getElementById('statusModal').classList.remove('hidden');
+}
+
+function closeStatusModal(){
+  const modal=document.getElementById('statusModal');
+  if(modal) modal.classList.add('hidden');
+}
+
+function showStatusMessage(text,type){
+  const el=document.getElementById('statusMessage');
+  if(!el)return;
+  el.className='status-modal-message '+(type||'info');
+  el.innerText=text||'';
+}
+
+function submitStudentStatus(status){
+  if(!session.userId || !session.token){
+    alert('Sesi login tidak tersedia. Silakan login kembali.');
+    return;
+  }
+  const nis=statusTarget.nis;
+  const tanggal=statusTarget.tanggal;
+  const keterangan=document.getElementById('statusKeterangan').value.trim();
+  const buttons=[document.getElementById('statusSakitBtn'),document.getElementById('statusIzinBtn')];
+  buttons.forEach(b=>{if(b)b.disabled=true;});
+  showStatusMessage('⏳ Menyimpan status '+status+'...','info');
+
+  jsonpRequest({
+    action:'setstatus',
+    userId:session.userId,
+    token:session.token,
+    nis:nis,
+    tanggal:tanggal,
+    status:status,
+    keterangan:keterangan
+  },function(result){
+    buttons.forEach(b=>{if(b)b.disabled=false;});
+    if(!result || !result.ok){
+      if(result && result.code==='SESSION_INVALID'){
+        closeStatusModal();
+        alert('Sesi login sudah berakhir. Silakan login kembali.');
+        doLogout(false);
+        return;
+      }
+      showStatusMessage((result&&result.message)||'Status gagal disimpan.','error');
+      return;
+    }
+
+    const row=dashboardData.find(r=>String(r.nis)===String(nis));
+    if(row){
+      row.status=result.status||status;
+      row.waktu='';
+      row.metode='WALI_KELAS';
+      row.keterangan=result.keterangan||keterangan||'Diisi oleh Wali Kelas';
+    }
+    recalcDashboardSummary();
+    filterTable();
+    showStatusMessage('✓ '+(result.message||'Status berhasil disimpan.'),'success');
+    setTimeout(closeStatusModal,700);
+  },function(error){
+    buttons.forEach(b=>{if(b)b.disabled=false;});
+    showStatusMessage(error.message||'Gagal menghubungi server.','error');
+  });
+}
+
+function recalcDashboardSummary(){
+  const summary={hadir:0,sakit:0,izin:0,alpa:0,belum:0};
+  dashboardData.forEach(function(r){
+    const s=String(r.status||'').toLowerCase();
+    if(s==='hadir')summary.hadir++;
+    else if(s==='sakit')summary.sakit++;
+    else if(s==='izin')summary.izin++;
+    else if(s==='alpa')summary.alpa++;
+    else summary.belum++;
+  });
+  document.getElementById('totalSiswa').innerText=dashboardData.length;
+  document.getElementById('hadir').innerText=summary.hadir;
+  document.getElementById('sakit').innerText=summary.sakit;
+  document.getElementById('izin').innerText=summary.izin;
+  document.getElementById('alpa').innerText=summary.alpa;
+  document.getElementById('belum').innerText=summary.belum;
 }
 
 function badge(status){
@@ -649,7 +823,7 @@ function doLogout(callServer){
 
 
 /* ==========================================================
-   V7.9.4 UNDUH PDF + % KEHADIRAN
+   V7.10.0 • Status Sakit/Izin + UNDUH PDF
    - Kamera tetap aktif setelah scan
    - Tidak reload dashboard setiap scan
    - Update ringkasan secara lokal
@@ -965,7 +1139,7 @@ function updateLocalSummaryAfterAttendance(){
 
 
 /* ==========================================================
-   V7.9.4 UNDUH PDF + % KEHADIRAN
+   V7.10.0 • Status Sakit/Izin + UNDUH PDF
    ========================================================== */
 function toggleDownloadMenu(){
   const m=document.getElementById('downloadMenu');
