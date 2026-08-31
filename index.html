@@ -126,7 +126,7 @@ tr:hover{background:#f8fbff}
 #scanResult{white-space:pre-line}
 
 
-/* V7.9.2 UNDUH PDF + % KEHADIRAN */
+/* V7.9.3 UNDUH PDF + % KEHADIRAN */
 .attendance-list-panel.hidden{display:none !important}
 .btn-close-list{white-space:nowrap}
 #loading{display:none}
@@ -143,7 +143,7 @@ tr:hover{background:#f8fbff}
 .download-menu.hidden{display:none!important}
 @media(max-width:600px){.download-wrap{width:100%}.download-wrap>.btn{width:100%}.download-menu{position:static;margin-top:7px;width:100%}}
 
-/* V7.9.2 PILIH BULAN */
+/* V7.9.3 PILIH BULAN */
 .month-modal{position:fixed;inset:0;background:rgba(10,31,52,.45);z-index:99999;display:none;align-items:center;justify-content:center;padding:18px}
 .month-modal.show{display:flex}
 .month-modal-card{width:min(440px,100%);background:#fff;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.22);padding:22px}
@@ -163,12 +163,16 @@ tr:hover{background:#f8fbff}
   .month-modal-actions{flex-direction:column}
 }
 
+
+/* V7.9.3 PDF DOWNLOAD FIX */
+.pdf-progress{pointer-events:none;white-space:normal}
+
 </style>
 
 <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body>
 
@@ -322,7 +326,7 @@ tr:hover{background:#f8fbff}
   </div>
 </div>
 
-<div class="footer">Presensi Digital • SD Negeri 2 Cihirup • V7.9.2 UNDUH PDF + % KEHADIRAN</div>
+<div class="footer">Presensi Digital • SD Negeri 2 Cihirup • V7.9.3 UNDUH PDF + % KEHADIRAN</div>
   </div>
 </section>
 
@@ -645,7 +649,7 @@ function doLogout(callServer){
 
 
 /* ==========================================================
-   V7.9.2 UNDUH PDF + % KEHADIRAN
+   V7.9.3 UNDUH PDF + % KEHADIRAN
    - Kamera tetap aktif setelah scan
    - Tidak reload dashboard setiap scan
    - Update ringkasan secara lokal
@@ -961,7 +965,7 @@ function updateLocalSummaryAfterAttendance(){
 
 
 /* ==========================================================
-   V7.9.2 UNDUH PDF + % KEHADIRAN
+   V7.9.3 UNDUH PDF + % KEHADIRAN
    ========================================================== */
 function toggleDownloadMenu(){
   const m=document.getElementById('downloadMenu');
@@ -972,8 +976,13 @@ document.addEventListener('click',function(e){
   if(w&&m&&!w.contains(e.target))m.classList.add('hidden');
 });
 function ensurePdfLib(){
-  if(!window.jspdf||!window.jspdf.jsPDF){
-    alert('Modul PDF belum siap. Pastikan internet aktif, lalu coba lagi.');
+  if(!window.jspdf || !window.jspdf.jsPDF){
+    alert('Modul PDF belum termuat. Pastikan internet aktif, lalu muat ulang halaman.');
+    return false;
+  }
+  const test = new window.jspdf.jsPDF();
+  if(typeof test.autoTable !== 'function'){
+    alert('Modul tabel PDF belum termuat. Pastikan internet aktif, lalu muat ulang halaman.');
     return false;
   }
   return true;
@@ -1008,7 +1017,12 @@ function downloadDailyPDF(){
   const y=(doc.lastAutoTable?.finalY||55)+8;
   doc.setFontSize(9);doc.setFont('helvetica','bold');
   doc.text('Jumlah: H='+c.H+'  I='+c.I+'  S='+c.S+'  A='+c.A,14,y);
-  doc.save('Rekap Presensi ' + formatDateLongId(new Date()) + '.pdf');
+  try{
+    doc.save('Rekap Presensi ' + formatDateLongId(new Date()) + '.pdf');
+  }catch(err){
+    console.error(err);
+    alert('PDF harian gagal diunduh: ' + (err.message || err));
+  }
 }
 function formatDateLongId(d){
   const names = [
@@ -1039,7 +1053,7 @@ function openMonthPicker(){
         <div class="month-modal-head">
           <div>
             <div class="month-modal-title">📊 Rekap Presensi Bulanan</div>
-            <div class="month-modal-subtitle">Pilih bulan yang akan diunduh</div>
+            <div class="month-modal-subtitle">Pilih bulan yang akan diunduh sebagai PDF</div>
           </div>
           <button class="month-modal-close" onclick="closeMonthPicker()">✕</button>
         </div>
@@ -1083,6 +1097,14 @@ function confirmMonthlyDownload(){
 
   showPdfProgress('⏳ Menyiapkan rekap presensi ' + formatMonthId(bulan) + '...');
 
+  let finished = false;
+  const timeout = setTimeout(function(){
+    if(finished) return;
+    finished = true;
+    hidePdfProgress();
+    alert('Proses rekap terlalu lama. Periksa koneksi internet lalu coba lagi.');
+  }, 30000);
+
   jsonpRequest(
     {
       action:'monthly',
@@ -1091,6 +1113,9 @@ function confirmMonthlyDownload(){
       bulan:bulan
     },
     function(result){
+      if(finished) return;
+      finished = true;
+      clearTimeout(timeout);
       hidePdfProgress();
 
       if(!result || !result.ok){
@@ -1098,9 +1123,17 @@ function confirmMonthlyDownload(){
         return;
       }
 
-      buildMonthlyPDF(result);
+      try{
+        buildMonthlyPDF(result);
+      }catch(err){
+        console.error(err);
+        alert('PDF gagal dibuat: ' + (err.message || err));
+      }
     },
     function(error){
+      if(finished) return;
+      finished = true;
+      clearTimeout(timeout);
       hidePdfProgress();
       alert(
         error && error.message
@@ -1147,7 +1180,12 @@ function buildMonthlyPDF(data){
   doc.setFont('helvetica','normal');
   doc.text('Jumlah tanggal dalam bulan: '+data.daysInMonth,8,y+5);
   doc.text('Prosentase kehadiran = (H / jumlah tanggal) × 100%',8,y+10);
-  doc.save('Rekap Presensi ' + formatMonthId(data.bulan) + '.pdf');
+  try{
+    doc.save('Rekap Presensi ' + formatMonthId(data.bulan) + '.pdf');
+  }catch(err){
+    console.error(err);
+    throw err;
+  }
 }
 
 function escapeHtml(value){
