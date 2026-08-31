@@ -126,7 +126,7 @@ tr:hover{background:#f8fbff}
 #scanResult{white-space:pre-line}
 
 
-/* V7.9.3 UNDUH PDF + % KEHADIRAN */
+/* V7.9.4 UNDUH PDF + % KEHADIRAN */
 .attendance-list-panel.hidden{display:none !important}
 .btn-close-list{white-space:nowrap}
 #loading{display:none}
@@ -143,7 +143,7 @@ tr:hover{background:#f8fbff}
 .download-menu.hidden{display:none!important}
 @media(max-width:600px){.download-wrap{width:100%}.download-wrap>.btn{width:100%}.download-menu{position:static;margin-top:7px;width:100%}}
 
-/* V7.9.3 PILIH BULAN */
+/* V7.9.4 PILIH BULAN */
 .month-modal{position:fixed;inset:0;background:rgba(10,31,52,.45);z-index:99999;display:none;align-items:center;justify-content:center;padding:18px}
 .month-modal.show{display:flex}
 .month-modal-card{width:min(440px,100%);background:#fff;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.22);padding:22px}
@@ -164,7 +164,7 @@ tr:hover{background:#f8fbff}
 }
 
 
-/* V7.9.3 PDF DOWNLOAD FIX */
+/* V7.9.4 PDF DOWNLOAD FIX */
 .pdf-progress{pointer-events:none;white-space:normal}
 
 </style>
@@ -326,7 +326,7 @@ tr:hover{background:#f8fbff}
   </div>
 </div>
 
-<div class="footer">Presensi Digital • SD Negeri 2 Cihirup • V7.9.3 UNDUH PDF + % KEHADIRAN</div>
+<div class="footer">Presensi Digital • SD Negeri 2 Cihirup • V7.9.4 UNDUH PDF + % KEHADIRAN</div>
   </div>
 </section>
 
@@ -649,7 +649,7 @@ function doLogout(callServer){
 
 
 /* ==========================================================
-   V7.9.3 UNDUH PDF + % KEHADIRAN
+   V7.9.4 UNDUH PDF + % KEHADIRAN
    - Kamera tetap aktif setelah scan
    - Tidak reload dashboard setiap scan
    - Update ringkasan secara lokal
@@ -965,7 +965,7 @@ function updateLocalSummaryAfterAttendance(){
 
 
 /* ==========================================================
-   V7.9.3 UNDUH PDF + % KEHADIRAN
+   V7.9.4 UNDUH PDF + % KEHADIRAN
    ========================================================== */
 function toggleDownloadMenu(){
   const m=document.getElementById('downloadMenu');
@@ -1024,6 +1024,21 @@ function downloadDailyPDF(){
     alert('PDF harian gagal diunduh: ' + (err.message || err));
   }
 }
+
+function formatMonthId(monthKey){
+  const p = String(monthKey || '').trim().split('-');
+  const y = Number(p[0]);
+  const m = Number(p[1]);
+  const names = [
+    'Januari','Februari','Maret','April','Mei','Juni',
+    'Juli','Agustus','September','Oktober','November','Desember'
+  ];
+  if(!/^\d{4}-\d{2}$/.test(String(monthKey || '')) || m < 1 || m > 12){
+    return String(monthKey || '');
+  }
+  return names[m-1] + ' ' + y;
+}
+
 function formatDateLongId(d){
   const names = [
     'Januari','Februari','Maret','April','Mei','Juni',
@@ -1095,7 +1110,13 @@ function confirmMonthlyDownload(){
 
   closeMonthPicker();
 
-  showPdfProgress('⏳ Menyiapkan rekap presensi ' + formatMonthId(bulan) + '...');
+  try{
+    showPdfProgress('⏳ Menyiapkan rekap presensi ' + formatMonthId(bulan) + '...');
+  }catch(err){
+    console.error(err);
+    alert('Gagal memulai unduhan: ' + (err.message || err));
+    return;
+  }
 
   let finished = false;
   const timeout = setTimeout(function(){
