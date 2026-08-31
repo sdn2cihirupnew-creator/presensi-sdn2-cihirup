@@ -121,6 +121,10 @@ tr:hover{background:#f8fbff}
   #reader{max-width:100%}
 }
 
+
+#startCameraBtn:disabled{opacity:.6;cursor:not-allowed}
+#scanResult{white-space:pre-line}
+
 </style>
 
 <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
@@ -237,10 +241,15 @@ tr:hover{background:#f8fbff}
 <div id="scannerPanel" class="card scanner-card hidden">
   <div class="scanner-head">
     <div>
-      <h2>📷 Scanner Presensi Siswa</h2>
-      <div class="scanner-note">Arahkan kamera HP ke QR siswa. QR harus berisi NIS siswa.</div>
+      <h2>📷 Scanner Presensi Siswa — FAST MODE</h2>
+      <div class="scanner-note">Mode cepat: kamera tetap aktif setelah scan. QR berikutnya dapat langsung dipindai.</div>
     </div>
-    <button class="btn btn-danger" onclick="closeScanner()">TUTUP SCANNER</button>
+    
+<div class="scanner-actions" style="margin:0">
+  <button class="btn btn-primary" onclick="loadDashboard()">↻ SINKRONKAN</button>
+  <button class="btn btn-danger" onclick="closeScanner()">TUTUP SCANNER</button>
+</div>
+
   </div>
 
   <div class="scanner-box">
@@ -264,7 +273,7 @@ tr:hover{background:#f8fbff}
   </div>
 </div>
 
-<div class="footer">Presensi Digital • SD Negeri 2 Cihirup • V7.6 Dashboard + Scanner + GitHub</div>
+<div class="footer">Presensi Digital • SD Negeri 2 Cihirup • V7.7 FAST SCANNER</div>
   </div>
 </section>
 
@@ -565,17 +574,26 @@ function doLogout(callServer){
 
 
 /* ==========================================================
-   V7.6 - SCANNER PRESENSI TERINTEGRASI
-   Backend scanner:
-   https://script.google.com/macros/s/AKfycbyXHJScpX3CrlyeKdTwMNMor5OWY1KtRI2c4CndvM6HvYgZyMCGwK7D6kWMg81HiX80/exec
+   V7.7 FAST SCANNER
+   - Kamera tetap aktif setelah scan
+   - Tidak reload dashboard setiap scan
+   - Update ringkasan secara lokal
+   - Debounce QR agar tidak double scan
+   - Backend tetap menggunakan endpoint scanner V6.1
    ========================================================== */
+const SCANNER_BACKEND =
+  'https://script.google.com/macros/s/AKfycbyXHJScpX3CrlyeKdTwMNMor5OWY1KtRI2c4CndvM6HvYgZyMCGwK7D6kWMg81HiX80/exec';
+
 let html5Scanner = null;
 let scannerRunning = false;
+let scanBusy = false;
 let lastScannedNis = '';
 let lastScanAt = 0;
+let localScanCount = 0;
 
 function openScanner(){
   const panel = document.getElementById('scannerPanel');
+  if(!panel) return;
   panel.classList.remove('hidden');
   panel.scrollIntoView({behavior:'smooth', block:'start'});
   showScanResult('info','Scanner siap. Tekan "MULAI KAMERA".');
@@ -584,62 +602,71 @@ function openScanner(){
 function closeScanner(){
   stopScanner();
   const panel = document.getElementById('scannerPanel');
-  panel.classList.add('hidden');
+  if(panel) panel.classList.add('hidden');
 }
 
 function showScanResult(type, text){
   const el = document.getElementById('scanResult');
+  if(!el) return;
   el.className = 'scan-result ' + type;
   el.innerText = text;
   el.style.display = 'block';
+}
+
+function setScanBusy(busy){
+  scanBusy = busy;
+  const btn = document.getElementById('startCameraBtn');
+  if(btn) btn.disabled = busy;
 }
 
 function normalizeNisFromQr(raw){
   let text = String(raw || '').trim();
   if(!text) return '';
 
-  // JSON QR, misalnya {"nis":"222301001"}
   try{
     const obj = JSON.parse(text);
     if(obj && obj.nis) return String(obj.nis).trim();
     if(obj && obj.NIS) return String(obj.NIS).trim();
   }catch(e){}
 
-  // URL yang mempunyai ?nis=...
   try{
     const u = new URL(text);
     const q = u.searchParams.get('nis') || u.searchParams.get('NIS');
     if(q) return q.trim();
   }catch(e){}
 
-  // Format NIS: 222301001 / NIS=222301001 / NIS:222301001
   const m = text.match(/(?:NIS|nis)\s*[:=]\s*([0-9A-Za-z_-]+)/);
   if(m) return m[1].trim();
 
-  // Jika QR hanya berisi angka/NIS
   return text.replace(/\s+/g,'').trim();
 }
 
 function startScanner(){
+  if(scannerRunning) return;
+
   if(typeof Html5Qrcode === 'undefined'){
-    showScanResult('error','Modul kamera belum termuat. Periksa koneksi internet lalu muat ulang halaman.');
+    showScanResult('error',
+      'Modul kamera belum termuat. Muat ulang halaman dan coba lagi.'
+    );
     return;
   }
 
-  if(scannerRunning) return;
-
   const reader = document.getElementById('reader');
+  if(!reader) return;
   reader.innerHTML = '';
 
   html5Scanner = new Html5Qrcode('reader');
 
   const config = {
-    fps: 10,
+    fps: 15,
     qrbox: function(viewfinderWidth, viewfinderHeight){
-      const size = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.72);
+      const size = Math.floor(
+        Math.min(viewfinderWidth, viewfinderHeight) * 0.70
+      );
       return {width:size, height:size};
     },
-    aspectRatio: 1.0
+    aspectRatio: 1.0,
+    rememberLastUsedCamera: true
   };
 
   html5Scanner.start(
@@ -648,22 +675,24 @@ function startScanner(){
     function(decodedText){
       handleScannedQr(decodedText);
     },
-    function(errorMessage){
-      // Error scanning per frame sengaja tidak ditampilkan agar tidak mengganggu.
-    }
+    function(){ }
   ).then(function(){
     scannerRunning = true;
-    showScanResult('info','Kamera aktif. Arahkan QR siswa ke kotak scanner.');
-  }).catch(function(err){
+    scanBusy = false;
+    showScanResult('info',
+      '🟢 KAMERA AKTIF — Arahkan QR siswa ke kotak scanner.'
+    );
+  }).catch(function(){
     scannerRunning = false;
     showScanResult('error',
-      'Kamera tidak dapat digunakan. Pastikan izin kamera browser diberikan. Anda juga dapat memakai input NIS manual.'
+      'Kamera tidak dapat digunakan. Izinkan akses kamera atau gunakan NIS manual.'
     );
   });
 }
 
 function stopScanner(){
   if(!html5Scanner || !scannerRunning){
+    scannerRunning = false;
     return Promise.resolve();
   }
 
@@ -677,42 +706,67 @@ function stopScanner(){
   });
 }
 
+/*
+ * FAST MODE:
+ * Kamera TIDAK dihentikan setelah QR terbaca.
+ * QR yang sama ditahan selama beberapa detik untuk mencegah duplikasi.
+ */
 function handleScannedQr(raw){
-  const nis = normalizeNisFromQr(raw);
+  if(scanBusy) return;
 
+  const nis = normalizeNisFromQr(raw);
   if(!nis){
     showScanResult('error','QR terbaca tetapi NIS tidak ditemukan.');
     return;
   }
 
   const now = Date.now();
-  if(nis === lastScannedNis && now - lastScanAt < 5000){
+
+  if(nis === lastScannedNis && now - lastScanAt < 6000){
     return;
   }
+
   lastScannedNis = nis;
   lastScanAt = now;
 
-  // Hentikan kamera sementara agar satu QR tidak tercatat berkali-kali.
-  stopScanner().then(function(){
-    sendScanToBackend(nis);
-  });
+  scanBusy = true;
+  showScanResult('info','⏳ Memproses NIS ' + nis + '...');
+
+  sendScanToBackendFast(nis);
 }
 
 function scanManual(){
-  const nis = document.getElementById('manualNis').value.trim();
+  if(scanBusy){
+    showScanResult('info','⏳ Scan sebelumnya masih diproses...');
+    return;
+  }
+
+  const input = document.getElementById('manualNis');
+  const nis = input ? input.value.trim() : '';
+
   if(!nis){
     showScanResult('error','Masukkan NIS terlebih dahulu.');
     return;
   }
-  sendScanToBackend(nis);
+
+  const now = Date.now();
+  lastScannedNis = nis;
+  lastScanAt = now;
+  scanBusy = true;
+
+  showScanResult('info','⏳ Memproses NIS ' + nis + '...');
+  sendScanToBackendFast(nis);
 }
 
-function sendScanToBackend(nis){
-  showScanResult('info','Memproses presensi NIS ' + nis + '...');
-
+function sendScanToBackendFast(nis){
   jsonpRequest(
-    {action:'scan', nis:nis},
+    {
+      action:'scan',
+      nis:nis
+    },
     function(result){
+      scanBusy = false;
+
       if(!result){
         showScanResult('error','Server tidak memberikan respons.');
         return;
@@ -720,6 +774,8 @@ function sendScanToBackend(nis){
 
       if(result.code === 'SUCCESS'){
         const s = result.student || {};
+        localScanCount++;
+
         showScanResult(
           'success',
           '✓ PRESENSI BERHASIL\n' +
@@ -727,55 +783,108 @@ function sendScanToBackend(nis){
           'NIS: ' + (s.nis || nis) + '\n' +
           'Kelas: ' + (s.kelas || '-') + '\n' +
           'Waktu: ' + (result.waktu || '-') + '\n' +
-          (result.keterangan || '')
+          (result.keterangan || '') +
+          '\n\n🟢 Scanner siap untuk siswa berikutnya.'
         );
-        loadDashboard();
+
+        // Update angka dashboard tanpa request ulang ke server.
+        updateLocalSummaryAfterAttendance();
+
+        // Bersihkan input manual.
+        const input = document.getElementById('manualNis');
+        if(input) input.value = '';
+
         return;
       }
 
       if(result.code === 'ALREADY'){
         const s = result.student || {};
+
         showScanResult(
           'info',
           'ℹ SUDAH PRESENSI\n' +
           (s.nama || '') + '\n' +
           'NIS: ' + (s.nis || nis) + '\n' +
-          'Waktu: ' + (result.waktu || '-') + '\n' +
-          'Tidak dicatat ulang.'
+          'Waktu: ' + (result.waktu || '-') +
+          '\n\n🟢 Scanner siap untuk siswa berikutnya.'
         );
-        loadDashboard();
+
         return;
       }
 
       if(result.code === 'NOT_FOUND'){
-        showScanResult('error','✕ NIS/QR TIDAK TERDAFTAR\nNIS: ' + nis);
+        showScanResult(
+          'error',
+          '✕ NIS/QR TIDAK TERDAFTAR\nNIS: ' + nis +
+          '\n\n🟢 Scanner tetap aktif.'
+        );
         return;
       }
 
       if(result.code === 'INACTIVE'){
         const s = result.student || {};
+
         showScanResult(
           'error',
           '⚠ DATA SISWA TIDAK AKTIF\n' +
-          (s.nama || '') + '\nNIS: ' + (s.nis || nis)
+          (s.nama || '') +
+          '\nNIS: ' + (s.nis || nis) +
+          '\n\n🟢 Scanner tetap aktif.'
         );
         return;
       }
 
       showScanResult(
         'error',
-        result.message || 'Presensi gagal diproses.'
+        result.message || 'Presensi gagal diproses.\n\n🟢 Scanner tetap aktif.'
       );
     },
     function(error){
+      scanBusy = false;
+
       showScanResult(
         'error',
-        error && error.message
+        (error && error.message
           ? error.message
-          : 'Gagal menghubungi server presensi.'
+          : 'Gagal menghubungi server presensi.') +
+        '\n\n🟢 Scanner tetap aktif.'
       );
     }
   );
+}
+
+/*
+ * Mengurangi jeda visual tanpa meminta dashboard baru ke server.
+ * Angka dashboard diperbarui dari keadaan yang sedang tampil.
+ */
+function updateLocalSummaryAfterAttendance(){
+  const cards = document.querySelectorAll('.card, .stat-card');
+  // Cari angka "HADIR" dan "BELUM" berdasarkan label.
+  document.querySelectorAll('*').forEach(function(el){
+    const t = String(el.innerText || '').trim().toUpperCase();
+
+    if(t === 'HADIR'){
+      const parent = el.closest('.card, .stat-card, div');
+      if(parent){
+        const nums = parent.querySelectorAll('h2,h3,.stat-number,.number,.value,strong');
+        if(nums.length){
+          const n = parseInt(nums[0].innerText,10);
+          if(!isNaN(n)) nums[0].innerText = String(n + 1);
+        }
+      }
+    }
+
+    if(t === 'BELUM' || t === 'BELUM PRESENSI'){
+      const parent = el.closest('.card, .stat-card, div');
+      if(parent){
+        const nums = parent.querySelectorAll('h2,h3,.stat-number,.number,.value,strong');
+        if(nums.length){
+          const n = parseInt(nums[0].innerText,10);
+          if(!isNaN(n) && n > 0) nums[0].innerText = String(n - 1);
+        }
+      }
+    }
+  });
 }
 
 
