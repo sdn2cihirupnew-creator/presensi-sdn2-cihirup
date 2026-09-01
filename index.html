@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0759a8">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>Presensi Digital SD Negeri 2 Cihirup • V7.12.0</title>
+<title>Presensi Digital SD Negeri 2 Cihirup • V7.12.1</title>
 <style>
 :root{
   --blue:#0759a8;--blue2:#147bea;--blue3:#eaf4ff;--text:#17365d;
@@ -218,8 +218,8 @@ tr:hover{background:#f8fbff}
 .sc-crest{width:78px;height:78px;object-fit:contain;background:#fff;border-radius:15px;padding:3px;margin-right:13px}
 .sc-school{font-size:32px;font-weight:900;letter-spacing:.5px;color:#0b4d23;line-height:1.05}
 .sc-school-sub{font-size:14px;color:#47624f;margin-top:5px}.sc-school-sub b{color:#b28b16}
-.sc-badge{margin-left:auto;background:linear-gradient(135deg,#e2c35b,#b99120);color:#fff;border-radius:12px;padding:10px 14px;text-align:center;font-weight:900;min-width:100px;box-shadow:0 4px 12px rgba(0,0,0,.12)}
-.sc-badge small{display:block;font-size:11px;margin-top:3px}
+.sc-badge{margin-left:auto;background:linear-gradient(135deg,#e2c35b,#b99120);color:#fff;border-radius:12px;padding:9px 12px;text-align:center;font-weight:900;min-width:150px;max-width:190px;box-shadow:0 4px 12px rgba(0,0,0,.12);line-height:1.15}
+.sc-badge small{display:block;font-size:10px;margin-top:4px;line-height:1.2}
 .sc-photo-wrap{position:absolute;left:28px;top:126px;width:210px;height:270px;border:5px solid #d3b039;border-radius:22px;background:#f7faf6;overflow:hidden;z-index:3;box-shadow:0 4px 14px rgba(0,0,0,.1)}
 .sc-photo{width:100%;height:100%;object-fit:cover}
 .sc-info{position:absolute;left:260px;top:132px;width:330px;background:rgba(255,255,255,.94);border-radius:18px;padding:16px 18px;z-index:4;border:1px solid #e2eadf}
@@ -259,7 +259,7 @@ tr:hover{background:#f8fbff}
   <div class="card login-card">
     <img id="loginLogo" class="login-logo" alt="Logo SDN 2 Cihirup">
     <div class="login-title">LOGIN PTK SDN 2 CIHIRUP</div>
-    <div class="login-subtitle">Wali Kelas • Admin • Kepala Sekolah • Guru Mapel • V7.12.0</div>
+    <div class="login-subtitle">Wali Kelas • Admin • Kepala Sekolah • Guru Mapel • V7.12.1</div>
 
     <div class="form-group">
       <label for="userId">USER ID</label>
@@ -395,9 +395,15 @@ tr:hover{background:#f8fbff}
         <div>
           <h2>🪪 Kartu Siswa + QR</h2>
           <div id="cardGeneratorInfo" class="dashboard-hint">Pilih kelas lalu tampilkan data siswa.</div>
+          <div class="dashboard-hint" style="margin-top:7px">
+            📷 <strong>Foto siswa:</strong> isi kolom <strong>FOTO</strong> pada data siswa dengan URL foto atau ID file Google Drive.
+            Gunakan foto formal tegak, wajah jelas, lalu klik <strong>TAMPILKAN SISWA</strong> untuk mengecek kartu.
+            Jika foto belum ada, kartu akan menampilkan placeholder <strong>FOTO SISWA</strong>.
+          </div>
         </div>
         <div class="card-generator-actions">
           <button class="btn btn-card" onclick="loadCardStudents()">↻ TAMPILKAN SISWA</button>
+          <button class="btn btn-card-blue" onclick="showPhotoGuide()">📷 PANDUAN FOTO</button>
           <button class="btn btn-danger" onclick="closeCardGenerator()">✕ TUTUP</button>
         </div>
       </div>
@@ -483,7 +489,7 @@ tr:hover{background:#f8fbff}
   </div>
 </div>
 
-<div class="footer">Presensi Digital • SD Negeri 2 Cihirup • V7.12.0 • MULTI ROLE CORE</div>
+<div class="footer">Presensi Digital • SD Negeri 2 Cihirup • V7.12.1 • KARTU SISWA</div>
   </div>
 </section>
 
@@ -1619,6 +1625,37 @@ function openCardGenerator(){
   panel.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
+function showPhotoGuide(){
+  let modal=document.getElementById('photoGuideModal');
+  if(!modal){
+    modal=document.createElement('div');
+    modal.id='photoGuideModal';
+    modal.className='card-preview-modal';
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML='<div class="card-preview-box" style="max-width:650px">'+
+    '<div class="card-preview-head"><div><h3>📷 Panduan Foto Siswa</h3><div class="card-preview-sub">Foto akan digunakan otomatis saat kartu siswa dibuat.</div></div>'+
+    '<button class="card-preview-close" onclick="closePhotoGuide()">✕</button></div>'+
+    '<div style="line-height:1.7;color:#17365d">'+
+      '<ol style="padding-left:22px">'+
+        '<li>Siapkan foto siswa dengan posisi tegak, wajah jelas dan pencahayaan cukup.</li>'+
+        '<li>Upload foto ke Google Drive sekolah.</li>'+
+        '<li>Salin <strong>link file</strong> atau gunakan <strong>ID file Drive</strong>.</li>'+
+        '<li>Masukkan link/ID tersebut pada kolom <strong>FOTO</strong> di data siswa.</li>'+
+        '<li>Kembali ke aplikasi, pilih kelas, lalu tekan <strong>TAMPILKAN SISWA</strong>.</li>'+
+        '<li>Tekan <strong>LIHAT</strong> untuk mengecek foto sebelum mengunduh PDF.</li>'+
+      '</ol>'+
+      '<div style="background:#eef6ff;border-radius:12px;padding:12px 14px;margin-top:12px"><strong>Catatan:</strong> kolom foto yang dikenali sistem antara lain FOTO, FOTO_URL, FOTO SISWA, PHOTO, PHOTO_URL, URL_FOTO, FOTO_ID, dan PHOTO_ID.</div>'+
+    '</div>'+
+    '<div class="card-preview-actions"><button class="btn btn-danger" onclick="closePhotoGuide()">TUTUP</button></div>'+
+  '</div>';
+  modal.classList.add('show');
+}
+function closePhotoGuide(){
+  const m=document.getElementById('photoGuideModal');
+  if(m)m.classList.remove('show');
+}
+
 function closeCardGenerator(){
   const panel=document.getElementById('cardGeneratorPanel');
   if(panel)panel.classList.add('hidden');
@@ -1664,14 +1701,12 @@ function ensureCardLibraries(){
 function makeStudentCard(student){
   const el=document.createElement('div');el.className='student-card-print';el.id='workingStudentCard';
   const photo=student.foto?'<img class="sc-photo" crossorigin="anonymous" src="'+escapeHtml(student.foto)+'" alt="Foto siswa">':'<div class="sc-placeholder">FOTO SISWA<br>Belum tersedia</div>';
-  const ttl=student.ttl||(student.tempatLahir&&student.tanggalLahir?(student.tempatLahir+', '+student.tanggalLahir):'');
-  el.innerHTML='<div class="sc-top"><img class="sc-crest" src="'+LOGO_DATA+'" alt="Logo SDN 2 Cihirup"><div><div class="sc-school">SD NEGERI 2 CIHIRUP</div><div class="sc-school-sub">Kec. Cidahu – Kab. Kuningan • <b>Prov. Jawa Barat</b></div></div><div class="sc-badge">KARTU SISWA<small>2025/2026</small></div></div>'+
+  el.innerHTML='<div class="sc-top"><img class="sc-crest" src="'+LOGO_DATA+'" alt="Logo SDN 2 Cihirup"><div><div class="sc-school">SD NEGERI 2 CIHIRUP</div><div class="sc-school-sub">Kec. Ciawigebang – Kab. Kuningan • <b>Prov. Jawa Barat</b></div></div><div class="sc-badge">KARTU SISWA<small>SELAMA MENJADI SISWA</small></div></div>'+
     '<div class="sc-photo-wrap">'+photo+'</div>'+
     '<div class="sc-info">'+
-      cardRow('NIS',student.nis)+cardRow('NISN',student.nisn||'-')+cardRow('Nama',student.nama)+cardRow('Kelas',student.kelas)+cardRow('TTL',ttl||'-')+cardRow('Alamat',student.alamat||'-','address')+
+      cardRow('NIS',student.nis)+cardRow('NISN',student.nisn||'-')+cardRow('Nama',student.nama)+cardRow('Kelas',student.kelas)+
     '</div>'+
     '<div class="sc-qrbox"><div id="qrTarget" class="sc-qr"></div></div>'+
-    '<div class="sc-nis">NIS: '+escapeHtml(student.nis)+'</div>'+
     '<div class="sc-bottom"><div class="rapekan">RAPEKAN</div><div class="slogan">Raksа Akhlak Panggelar Ilmu Kaluhungan Atikan</div></div>'+
     '<div class="sc-watermark">Peduli Lingkungan • Berkarakter • Berprestasi • Lestari</div>';
   const q=el.querySelector('#qrTarget');
