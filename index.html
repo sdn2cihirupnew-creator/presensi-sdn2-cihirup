@@ -277,6 +277,19 @@ body{background:radial-gradient(circle at 85% 10%,rgba(240,197,47,.16),transpare
 @media(max-width:700px){.header-title{font-size:21px}.header-school{font-size:12px}.recap-preview-summary{grid-template-columns:repeat(2,1fr)}.recap-preview-head,.recap-preview-body,.recap-preview-foot{padding:14px}}
 
 
+
+/* V7.13.1: SIDEBAR HANYA AKTIF SETELAH LOGIN */
+.app-sidebar,.mobile-menu-btn,.sidebar-overlay{display:none}
+.header{margin-left:0}
+.container{margin:24px 28px;padding:0 8px}
+.footer{margin-left:0}
+body.dashboard-active .app-sidebar{display:flex}
+body.dashboard-active .mobile-menu-btn{display:block}
+body.dashboard-active .header{margin-left:270px}
+body.dashboard-active .container{max-width:none;margin:24px 28px 24px 298px;padding:0 8px}
+body.dashboard-active .footer{margin-left:270px}
+body.dashboard-active .sidebar-overlay.show{display:block}
+@media(max-width:900px){body.dashboard-active .app-sidebar{display:flex;transform:translateX(-105%)}body.dashboard-active .app-sidebar.open{transform:translateX(0)}body.dashboard-active .mobile-menu-btn{display:block}.header{margin-left:0!important;padding-left:30px}.container,body.dashboard-active .container{margin:18px auto;padding:0 12px;max-width:1450px}.footer,body.dashboard-active .footer{margin-left:0}}
 </style>
 
 <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
@@ -666,6 +679,7 @@ function showLoginMessage(text, type){
 }
 
 function doLogin(){
+  document.body.classList.remove('dashboard-active');
   const userId = document.getElementById('userId').value.trim();
   const pin = document.getElementById('pin').value.trim();
   const btn = document.getElementById('loginBtn');
@@ -724,6 +738,7 @@ function isWaliKelas(){
 }
 
 function showDashboard(){
+  document.body.classList.add('dashboard-active');
   document.getElementById('loginPage').classList.add('hidden');
   document.getElementById('dashboardPage').classList.remove('hidden');
 
@@ -1091,6 +1106,8 @@ function filterTable(){
 }
 
 function doLogout(callServer){
+  document.body.classList.remove('dashboard-active');
+  closeSidebar();
   const shouldCallServer = callServer !== false;
   const old = Object.assign({}, session);
 
@@ -1896,8 +1913,7 @@ function printAllStudentCards(){
   if(!cardStudentsData.length){alert('Belum ada data siswa. Klik TAMPILKAN SISWA terlebih dahulu.');return;}
   const w=window.open('','_blank');if(!w){alert('Popup diblokir browser. Izinkan popup untuk mencetak kartu.');return;}
   const cards=cardStudentsData.map(function(s){return makeStudentCard(s).outerHTML;}).join('');
-  w.document.write('<!doctype html><html><head><title>Kartu Siswa - '+escapeHtml(cardSelectedClass)+'</title><style>body{margin:0;background:#fff} .student-card-print{margin:0 auto;page-break-after:always} @page{size:85mm 54mm;margin:0}
-</style></head><body>'+cards+'</body></html>');w.document.close();w.focus();setTimeout(function(){w.print();},700);
+  w.document.write('<!doctype html><html><head><title>Kartu Siswa - '+escapeHtml(cardSelectedClass)+'</title><style>body{margin:0;background:#fff} .student-card-print{margin:0 auto;page-break-after:always} @page{size:85mm 54mm;margin:0}\n</style></head><body>'+cards+'</body></html>');w.document.close();w.focus();setTimeout(function(){w.print();},700);
 }
 function safeFileName(s){return String(s||'').replace(/[\\/:*?"<>|]/g,' ').replace(/\s+/g,' ').trim().slice(0,80)||'Siswa';}
 
